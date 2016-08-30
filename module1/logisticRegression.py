@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 def getWeights(x, t, N, M, K, weightCost):
   w0 = np.ones((M+1,K))
-  [weights, error, info]  = optimize.fmin_l_bfgs_b(logRegObjectiveOpt, w0, args=(t, x, weightCost, M, K), approx_grad=True) 
+  [weights, error, info] = optimize.fmin_l_bfgs_b(logRegObjectiveOpt, w0, args=(t, x, weightCost, M, K), fprime=logRegGradOpt) 
   weights.shape = (M+1,K)
   [w,b] = np.vsplit(weights, [M])
   return w, b
@@ -12,6 +12,7 @@ def getWeights(x, t, N, M, K, weightCost):
 def logRegObjectiveOpt(wb, t, x, weightCost, M, K):
   [w,b] = np.split(wb, [K*M])
   w.shape = (M,K)
+  b.shape = (1,K)
   error = logRegObjective(w, b, t, x, weightCost)
   return error
 
@@ -20,36 +21,48 @@ def logRegObjective(w, b, t, x, weightCost):
   [N,K] = t.shape
   M = w.size / K
   error = 0
+  y = np.zeros((N,K))
+  y = predictClasses(x, w, b)
   for i in range(N):
-    y = predictClasses(x[i,:], w, b)
     for j in range(K):
-      error += -t[i,j]*np.log(y[j])
+      error += -t[i,j]*np.log(y[i,j])
   for i in range(M):
     for j in range(K):
       error += weightCost*w[i,j]**2
   return error
 
+def logRegGradOpt(wb, t, x, weightCost, M, K):
+  [w,b] = np.split(wb, [K*M])
+  w.shape = (M,K)
+  b.shape = (1,K)
+  grad = logRegGrad(w, b, t, x, weightCost)
+  return grad
+
 def logRegGrad(w, b, t, x, weightCost):
-  return t
+  [N,M] = x.shape
+  [one,K] = b.shape
+  grad = np.zeros((K,M))
+  y = np.zeros((N,K))
+  y = predictClasses(x, w, b)
+  for k in range(K):
+    for n in range(N):
+      grad[k,:] += (y[n,k] - t[n,k])*x[n,:]  
+  return grad
 
 def predictClasses(x,w,b):
-  a = np.dot(x,w) + b
-  #TODO this is janky
-  if a.ndim > 1:
-    [N,K] = a.shape
-    yPred = np.zeros((N,K))
-    for n in range(N):
-      yPred[n,:] = softmax(a[n,:])
-  else:  
-    K = a.size
-    yPred = np.zeros((K))
-    yPred = softmax(a)
+  [N,M] = x.shape
+  a = np.dot(x,w) + np.dot(np.ones((N,1)),b)
+  [N,K] = a.shape
+  yPred = np.zeros((N,K))
+  for n in range(N):
+    yPred[n,:] = softmax(a[n,:])
   return yPred
 
 def generateData(N,M,K):
-  x = np.random.random((N,M))
-  w = np.random.random((M,K))
-  b = np.ones((1,K)) * -0.5
+  x = np.random.random((N,M))*2. - 1.
+
+  w = np.vstack((np.ones(K), np.arange(K)*2-1)) + np.random.normal(scale=0.05, size=(M,K))
+  b = np.arange(K)*0.5 + np.random.normal(scale=0.05, size=(1,K))
 
   y = predictClasses(x,w,b)
   t = np.zeros((N,K))
@@ -57,14 +70,17 @@ def generateData(N,M,K):
     maxIdx = np.argmax(y[rowIdx,:])
     t[rowIdx,maxIdx] = 1
 
-  plotData(x,t,K)
+  plotData(x,t,w,b,K)
   return x, t
 
-def plotData(x,t,K):
+def plotData(x,t,w,b,K):
   [x1, x2] = np.hsplit(x, [1])
-  label = np.dot(t, np.arange(K))
+  label = np.dot(t, np.arange(K)+1)
   
   plt.scatter(x1, x2, c=label, alpha=0.5, s=75)
+  for idx in range(K):
+    line = -w[0,idx]/w[1,idx] * x1 - b[0,idx]/w[1,idx]
+    plt.plot(x1,line)
   plt.show()
 
 def calcError(tPred,tReal):
@@ -75,6 +91,8 @@ def softmax(a):
   # TODO this are numerically badz
   K = a.size
   softmax = np.zeros((K))
+  maxval = np.amax(a)
+  a -= maxval # for stability
   denom = 0
   for colIdx in range(K):
     denom += np.exp(a[colIdx])
