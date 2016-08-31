@@ -3,7 +3,7 @@ from scipy import optimize
 from matplotlib import pyplot as plt
 
 def getWeights(x, t, N, M, K, weightCost):
-  w0 = np.ones((M+1,K))
+  w0 = np.ones((M+1)*K)
   [weights, error, info] = optimize.fmin_l_bfgs_b(logRegObjectiveOpt, w0, args=(t, x, weightCost, M, K), fprime=logRegGradOpt) 
   weights.shape = (M+1,K)
   [w,b] = np.vsplit(weights, [M])
@@ -41,12 +41,15 @@ def logRegGradOpt(wb, t, x, weightCost, M, K):
 def logRegGrad(w, b, t, x, weightCost):
   [N,M] = x.shape
   [one,K] = b.shape
-  grad = np.zeros((K,M))
+  grad = np.zeros((M+1,K))
   y = np.zeros((N,K))
   y = predictClasses(x, w, b)
   for k in range(K):
     for n in range(N):
-      grad[k,:] += (y[n,k] - t[n,k])*x[n,:]  
+      for m in range(M):
+        grad[m,k] += (y[n,k] - t[n,k])*x[n,m]  
+      grad[M,k] += (y[n,k] - t[n,k])*1. # for bias
+  grad.shape = ((M+1)*K)
   return grad
 
 def predictClasses(x,w,b):
@@ -88,10 +91,9 @@ def calcError(tPred,tReal):
   return np.sum(error)
 
 def softmax(a):
-  # TODO this are numerically badz
   K = a.size
   softmax = np.zeros((K))
-  maxval = np.amax(a)
+  maxval = np.amax(a) # TODO incorrect, want largest magnitude
   a -= maxval # for stability
   denom = 0
   for colIdx in range(K):
