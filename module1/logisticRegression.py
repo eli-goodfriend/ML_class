@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import optimize
+from scipy import io
 from matplotlib import pyplot as plt
 
 def getWeights(x, t, N, M, K, weightCost):
@@ -21,10 +22,11 @@ def logRegObjective(w, b, t, x, weightCost):
   [N,K] = t.shape
   M = w.size / K
   error = 0
-  y = np.zeros((N,K))
   y = predictClasses(x, w, b)
   for i in range(N):
     for j in range(K):
+      print i,j
+      print np.log(y[i,j])
       error += -t[i,j]*np.log(y[i,j])
   for i in range(M):
     for j in range(K):
@@ -41,8 +43,7 @@ def logRegGradOpt(wb, t, x, weightCost, M, K):
 def logRegGrad(w, b, t, x, weightCost):
   [N,M] = x.shape
   [one,K] = b.shape
-  grad = np.zeros((M+1,K))
-  y = np.zeros((N,K))
+  grad = np.empty((M+1,K))
   y = predictClasses(x, w, b)
   for k in range(K):
     for n in range(N):
@@ -56,7 +57,7 @@ def predictClasses(x,w,b):
   [N,M] = x.shape
   a = np.dot(x,w) + np.dot(np.ones((N,1)),b)
   [N,K] = a.shape
-  yPred = np.zeros((N,K))
+  yPred = np.empty((N,K))
   for n in range(N):
     yPred[n,:] = softmax(a[n,:])
   return yPred
@@ -64,7 +65,10 @@ def predictClasses(x,w,b):
 def generateData(N,M,K):
   x = np.random.random((N,M))*2. - 1.
 
-  w = np.vstack((np.ones(K), np.arange(K)*2-1)) + np.random.normal(scale=0.05, size=(M,K))
+  w = np.ones(K)
+  for dimension in range(M-1):
+    w = np.vstack((w, np.arange(K)*2-1))
+  w += np.random.normal(scale=0.05, size=(M,K))
   b = np.arange(K)*0.5 + np.random.normal(scale=0.05, size=(1,K))
 
   y = predictClasses(x,w,b)
@@ -73,7 +77,7 @@ def generateData(N,M,K):
     maxIdx = np.argmax(y[rowIdx,:])
     t[rowIdx,maxIdx] = 1
 
-  plotData(x,t,w,b,K)
+  #plotData(x,t,w,b,K)
   return x, t
 
 def plotData(x,t,w,b,K):
@@ -91,13 +95,33 @@ def calcError(tPred,tReal):
   return np.sum(error)
 
 def softmax(a):
-  K = a.size
-  softmax = np.zeros((K))
-  maxval = np.amax(a) # TODO incorrect, want largest magnitude
-  a -= maxval # for stability
-  denom = 0
-  for colIdx in range(K):
-    denom += np.exp(a[colIdx])
-    softmax[colIdx] = np.exp(a[colIdx])
-  softmax /= denom 
+  expA = np.exp(a - a.max())
+  expSum = expA.sum()
+  if (expSum==0):
+    raise NameError('All classes have likelihood 0.')
+  softmax = expA / expSum
   return softmax
+
+def pullData(filename, Ntrain, Ntest):
+  data = io.loadmat(filename) 
+  [en,M] = data['train0'].shape
+  K = 10 # there are ten numerals, or could read this from data
+  xTrain = np.empty((Ntrain*K,M))
+  tTrain = np.zeros((Ntrain*K,K))
+  xTest = np.empty((Ntest*K,M))
+  tTest = np.zeros((Ntest*K,K))
+  for key in list(data.keys()): 
+    if key[0:5]=="train":
+      classLabel = int(key[5])
+      xTrain[classLabel*Ntrain:(classLabel+1)*Ntrain, :] = data[key][0:Ntrain, :]
+      tTrain[classLabel*Ntrain:(classLabel+1)*Ntrain, classLabel] = 1
+    elif key[0:4]=="test":
+      classLabel = int(key[4])
+      xTest[classLabel*Ntest:(classLabel+1)*Ntest, :] = data[key][0:Ntest, :]
+      tTest[classLabel*Ntest:(classLabel+1)*Ntest, classLabel] = 1
+
+  return xTrain, tTrain, xTest, tTest, M, K
+
+
+
+
