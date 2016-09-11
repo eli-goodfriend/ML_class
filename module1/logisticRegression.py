@@ -18,15 +18,18 @@ def logRegObjectiveOpt(wb, t, x, weightCost, M, K):
   return error
 
 def logRegObjective(w, b, t, x, weightCost):
+  eps = 1.e-8
 # TODO this is janky
   [N,K] = t.shape
   M = w.size / K
   error = 0
   y = predictClasses(x, w, b)
+
+  if (np.amax(y) > 1.-eps): # single class chosen
+    return error
+
   for i in range(N):
     for j in range(K):
-      print i,j
-      print np.log(y[i,j])
       error += -t[i,j]*np.log(y[i,j])
   for i in range(M):
     for j in range(K):
@@ -38,19 +41,20 @@ def logRegGradOpt(wb, t, x, weightCost, M, K):
   w.shape = (M,K)
   b.shape = (1,K)
   grad = logRegGrad(w, b, t, x, weightCost)
+  grad.shape = ((M+1)*K)
   return grad
 
 def logRegGrad(w, b, t, x, weightCost):
   [N,M] = x.shape
   [one,K] = b.shape
-  grad = np.empty((M+1,K))
+  grad = np.zeros((M+1,K))
   y = predictClasses(x, w, b)
   for k in range(K):
     for n in range(N):
       for m in range(M):
         grad[m,k] += (y[n,k] - t[n,k])*x[n,m]  
+        grad[m,k] += 2*weightCost*w[m,k]/N # for weight penalty
       grad[M,k] += (y[n,k] - t[n,k])*1. # for bias
-  grad.shape = ((M+1)*K)
   return grad
 
 def predictClasses(x,w,b):
@@ -62,22 +66,29 @@ def predictClasses(x,w,b):
     yPred[n,:] = softmax(a[n,:])
   return yPred
 
-def generateData(N,M,K):
-  x = np.random.random((N,M))*2. - 1.
-
-  w = np.ones(K)
+def generateWeights(M,K):
+  w = np.ones((1,K))
   for dimension in range(M-1):
     w = np.vstack((w, np.arange(K)*2-1))
-  w += np.random.normal(scale=0.05, size=(M,K))
-  b = np.arange(K)*0.5 + np.random.normal(scale=0.05, size=(1,K))
+  #w += np.random.normal(scale=0.05, size=(M,K))
+  b = np.arange(K)*0.5
+  b.shape = (1,K)
+  #b += np.random.normal(scale=0.05, size=(1,K))
+  return w, b
 
-  y = predictClasses(x,w,b)
+def setTFromY(y):
+  [N,K] = y.shape
   t = np.zeros((N,K))
   for rowIdx in range(N):
     maxIdx = np.argmax(y[rowIdx,:])
     t[rowIdx,maxIdx] = 1
+  return t
 
-  #plotData(x,t,w,b,K)
+def generateData(N,M,K):
+  x = np.random.random((N,M))*2. - 1.
+  w, b = generateWeights(M,K)
+  y = predictClasses(x,w,b)
+  t = setTFromY(y)
   return x, t
 
 def plotData(x,t,w,b,K):
@@ -93,6 +104,11 @@ def plotData(x,t,w,b,K):
 def calcError(tPred,tReal):
   error = (tPred - tReal)**2
   return np.sum(error)
+
+def numWrong(tPred, tReal):
+  numWrong = np.count_nonzero(tPred - tReal)
+  numWrong /= 2 # since one wrong t value will be different in 2 places
+  return numWrong
 
 def softmax(a):
   expA = np.exp(a - a.max())

@@ -20,11 +20,14 @@ def main():
   [xNew,tNew] = lr.generateData(Ntest,M,K)
 
   # classify the new data using the model
-  tPred = lr.predictClasses(xNew,w,b)
+  yPred = lr.predictClasses(xNew,w,b)
+  tPred = lr.setTFromY(yPred)
 
   # how right were we?
-  error = lr.calcError(tPred,tNew)
-  print "error = ",error
+  error = lr.calcError(yPred,tNew)
+  print "SSE (yPred - t) = ",error
+  numWrong = lr.numWrong(tPred,tNew)
+  print numWrong, "incorrect out of", Ntest
 
 if __name__ == "__main__":
   main()
