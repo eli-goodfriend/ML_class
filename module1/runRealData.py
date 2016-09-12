@@ -5,7 +5,7 @@ import logisticRegression as lr
 
 def main():
   weightCost = 0.5 
-  Ntrain = 20 # for each numeral
+  Ntrain = 30 # for each numeral
   Ntest = 5 # for each numeral
 
   # get the training and testing data from the MNIST dataset

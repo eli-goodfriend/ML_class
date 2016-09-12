@@ -19,7 +19,6 @@ def logRegObjectiveOpt(wb, t, x, weightCost, M, K):
 
 def logRegObjective(w, b, t, x, weightCost):
   eps = 1.e-8
-# TODO this is janky
   [N,K] = t.shape
   M = w.size / K
   error = 0
@@ -28,12 +27,8 @@ def logRegObjective(w, b, t, x, weightCost):
   if (np.amax(y) > 1.-eps): # single class chosen
     return error
 
-  for i in range(N):
-    for j in range(K):
-      error += -t[i,j]*np.log(y[i,j])
-  for i in range(M):
-    for j in range(K):
-      error += weightCost*w[i,j]**2
+  error = np.sum(-t*np.log(y))
+  error += weightCost*np.sum(w**2)
   return error
 
 def logRegGradOpt(wb, t, x, weightCost, M, K):
@@ -47,14 +42,10 @@ def logRegGradOpt(wb, t, x, weightCost, M, K):
 def logRegGrad(w, b, t, x, weightCost):
   [N,M] = x.shape
   [one,K] = b.shape
-  grad = np.zeros((M+1,K))
   y = predictClasses(x, w, b)
-  for k in range(K):
-    for n in range(N):
-      for m in range(M):
-        grad[m,k] += (y[n,k] - t[n,k])*x[n,m]  
-        grad[m,k] += 2*weightCost*w[m,k]/N # for weight penalty
-      grad[M,k] += (y[n,k] - t[n,k])*1. # for bias
+  errSignal = y - t
+  paddedx = np.hstack((x, np.ones((N,1))))
+  grad = np.dot(paddedx.T, errSignal) + 2.*weightCost*np.vstack((w, np.zeros((1,K))))
   return grad
 
 def predictClasses(x,w,b):
@@ -129,11 +120,11 @@ def pullData(filename, Ntrain, Ntest):
   for key in list(data.keys()): 
     if key[0:5]=="train":
       classLabel = int(key[5])
-      xTrain[classLabel*Ntrain:(classLabel+1)*Ntrain, :] = data[key][0:Ntrain, :]
+      xTrain[classLabel*Ntrain:(classLabel+1)*Ntrain, :] = data[key][0:Ntrain, :]/255.
       tTrain[classLabel*Ntrain:(classLabel+1)*Ntrain, classLabel] = 1
     elif key[0:4]=="test":
       classLabel = int(key[4])
-      xTest[classLabel*Ntest:(classLabel+1)*Ntest, :] = data[key][0:Ntest, :]
+      xTest[classLabel*Ntest:(classLabel+1)*Ntest, :] = data[key][0:Ntest, :]/255.
       tTest[classLabel*Ntest:(classLabel+1)*Ntest, classLabel] = 1
 
   return xTrain, tTrain, xTest, tTest, M, K

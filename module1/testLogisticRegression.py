@@ -12,12 +12,12 @@ def testGenerateData():
   # check that generated data has the right labels based on set weights
   N = 20 # number of training data points
   M = 2  # dimension of data
-  K = 3  # number of classes
+  K = 4  # number of classes
 
   [x,t] = lr.generateData(N,M,K)
   w, b = lr.generateWeights(M,K)   
 
-  lr.plotData(x, t, w, b, K)
+  #lr.plotData(x, t, w, b, K)
 
   y = lr.predictClasses(x,w,b)
   shouldBeT = lr.setTFromY(y) 
@@ -36,9 +36,9 @@ def testPullData():
   Ntest = 5 # for each numeral
   [xTrain,tTrain, xTest, tTest, M, K] = lr.pullData("mnist_all.mat", Ntrain, Ntest)
 
-  if ( (np.amax(xTrain) > 255) or
+  if ( (np.amax(xTrain) > 1) or
        (np.amin(xTrain) < 0) or
-       (np.amax(xTest) > 255) or
+       (np.amax(xTest) > 1) or
        (np.amin(xTest) < 0) or
        (np.amax(tTrain) > 9) or
        (np.amin(tTrain) < 0) or
@@ -74,7 +74,7 @@ def testLogRegObjectiveOpt():
   # check that the two log reg obj functions do the same thing
   N = 20 # number of training data points
   M = 2  # dimension of data
-  K = 3  # number of classes
+  K = 4  # number of classes
   weightCost = 0.5
 
   [x,t] = lr.generateData(N,M,K)
@@ -96,7 +96,7 @@ def testLogRegGradOpt():
   # check that the two log reg obj grad functions do the same thing
   N = 20 # number of training data points
   M = 2  # dimension of data
-  K = 3  # number of classes
+  K = 4  # number of classes
   weightCost = 0.5
 
   [x,t] = lr.generateData(N,M,K)
@@ -120,7 +120,7 @@ def testLogRegGrad():
   # check that the two log reg obj grad functions do the same thing
   N = 20 # number of training data points
   M = 2  # dimension of data
-  K = 3  # number of classes
+  K = 4  # number of classes
   weightCost = 0.5
 
   [x,t] = lr.generateData(N,M,K)
