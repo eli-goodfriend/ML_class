@@ -133,10 +133,39 @@ def testLogRegGrad():
     print "error in gradient =", error
   return testFails
 
+def testStochasticGradientDescent():
+  testFails = False
+  eps = 1.e-3
+
+  # check that my gradient descent does the same thing as python's
+  N = 20 # number of training data points
+  M = 2  # dimension of data
+  K = 4  # number of classes
+  weightCost = 0.5
+  [x, t] = lr.generateData(N,M,K)
+
+  w0 = np.ones((M,K))
+  b0 = np.zeros((1,K))
+  [w, b] = lr.stochasticGradientDescent(lr.logRegObjective, lr.logRegGrad, w0, b0, t, x, weightCost, M, K) 
+  wb0 = np.vstack((w0,b0))
+  [wb, error, info] = optimize.fmin_l_bfgs_b(lr.logRegObjectiveOpt, wb0, args=(t, x, weightCost, M, K), fprime=lr.logRegGradOpt)
+  wb.shape = (M+1, K)
+  [wPy, bPy] = np.vsplit(wb, [M])
+
+  if (np.any(abs(w-wPy)>eps) or np.any(abs(b-bPy)>eps)):
+    testFails = True
+    print "wPy = ", wPy
+    print "w =", w
+    print "bPy = ", bPy
+    print "b =", b
+
+  return testFails
+
 def main():
   tests = ['testGenerateData', 
            'testPullData',
            'testUseScipyOptimize',
+           'testStochasticGradientDescent',
            'testLogRegObjectiveOpt',
            'testLogRegGradOpt',
            'testLogRegGrad']

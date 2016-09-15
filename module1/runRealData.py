@@ -5,8 +5,8 @@ import logisticRegression as lr
 
 def main():
   weightCost = 0.5 
-  Ntrain = 30 # for each numeral
-  Ntest = 5 # for each numeral
+  Ntrain = 5400 # for each numeral
+  Ntest = 800 # for each numeral
 
   # get the training and testing data from the MNIST dataset
   [xTrain,tTrain, xTest, tTest, M, K] = lr.pullData("mnist_all.mat", Ntrain, Ntest)

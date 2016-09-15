@@ -3,11 +3,17 @@ from scipy import optimize
 from scipy import io
 from matplotlib import pyplot as plt
 
-def getWeights(x, t, N, M, K, weightCost):
+def getWeightsScipy(x, t, N, M, K, weightCost):
   w0 = np.ones((M+1)*K)
   [weights, error, info] = optimize.fmin_l_bfgs_b(logRegObjectiveOpt, w0, args=(t, x, weightCost, M, K), fprime=logRegGradOpt) 
   weights.shape = (M+1,K)
   [w,b] = np.vsplit(weights, [M])
+  return w, b
+
+def getWeights(x, t, N, M, K, weightCost):
+  w0 = np.ones((M,K))
+  b0 = np.zeros((1,K))
+  [w, b] = stochasticGradientDescent(logRegObjective, logRegGrad, w0, b0, t, x, weightCost, M, K)
   return w, b
 
 def logRegObjectiveOpt(wb, t, x, weightCost, M, K):
@@ -128,6 +134,56 @@ def pullData(filename, Ntrain, Ntest):
       tTest[classLabel*Ntest:(classLabel+1)*Ntest, classLabel] = 1
 
   return xTrain, tTrain, xTest, tTest, M, K
+
+def gradientDescent(objective, gradObjective, w0, b0, t, x, weightCost, M, K, momentum = 0., dw = 0., db = 0., maxIter = 100, learnRate = 0.05, mbSize = 1):
+  eps = 1.e-7
+  w = w0
+  b = b0
+  oldObjVal = objective(w, b, t, x, weightCost)
+  
+  for iteration in range(maxIter): 
+    objGrad = gradObjective(w, b, t, x, len(x)*weightCost)
+    dw *= momentum
+    db *= momentum
+    dw -= learnRate*objGrad[0:M, :] / float(len(x))
+    db -= learnRate*objGrad[M, :] / float(len(x))
+    w += dw
+    b += db
+    newObjVal = objective(w, b, t, x, weightCost)
+    diff = abs(newObjVal - oldObjVal)
+    if (diff < eps):
+      return w, b, dw, db, True
+    else:
+      oldObjVal = newObjVal
+  return w, b, dw, db, False
+
+def stochasticGradientDescent(objective, gradObjective, w0, b0, t, x, weightCost, M, K, momentum = 0.95, steps = 50000, learnRate = 0.05, mbSize = 64):
+  eps = 1.e-7
+  [N, em] = x.shape
+  dataPts = range(N)
+  dw = np.zeros((M,K))
+  db = np.zeros((1,K))
+
+  for step in range(steps):
+    np.random.shuffle(dataPts)
+    dataThisTime = dataPts[0:mbSize]
+    tMB = t[dataThisTime, :]
+    xMB = x[dataThisTime, :] 
+    w, b, dw, db, done = gradientDescent(objective, gradObjective, w0, b0, tMB, xMB, weightCost, M, K, momentum, dw, db, 1, learnRate, mbSize)
+    if (done):
+      return w, b
+    else:
+      w0 = w
+      b0 = b
+
+  return w, b
+
+
+
+
+
+
+
 
 
 
